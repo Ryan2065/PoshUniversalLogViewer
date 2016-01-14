@@ -1,6 +1,6 @@
 ﻿Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase
 
-Function Apply-EphingTemplate {
+Function Update-EphingTemplate {
     Param ( 
         $LogFileList,
         $TemplateText
@@ -85,7 +85,7 @@ Function Apply-EphingTemplate {
                     <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,5,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Name="Btn_SaveTemplate" Width="75" Content="Save" Margin="0,0,5,0"/>
                         <Button Name="Btn_LoadTemplate" Width="75" Content="Load" Margin="0,0,5,0"/>
-                        <Button Name="Btn_ApplyTemplate" Width="75" Content="Apply" Margin="0,0,5,0"/>
+                        <Button Name="Btn_ApplyTemplate" Width="75" Content="Update" Margin="0,0,5,0"/>
                     </StackPanel>
                 </Grid>
             </Expander>
@@ -243,11 +243,11 @@ $Window_Btn_SaveTemplate.Add_Click({
 })
 
 $Window_Btn_ApplyTemplate.Add_Click({
-    Apply-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
+    Update-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
 })
 
 $Window_Btn_Refresh.Add_Click({
-    Apply-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
+    Update-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
 })
  
 $Window.ShowDialog() | Out-Null
