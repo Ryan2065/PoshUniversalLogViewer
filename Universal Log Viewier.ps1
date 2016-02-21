@@ -1,107 +1,4 @@
 ﻿Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase
-
-Function Update-EphingTemplate {
-    Param ( 
-        $LogFileList,
-        $TemplateText
-    )
-    $Scriptblock = {
-        $LogFileList = $args[0]
-        $TemplateText = $args[1]
-        $WindowHashTable.RunspaceRunning = $true
-        $WindowHashTable.WindowDataContext.ProgressText = 'Please wait...'
-        try {
-            
-            $WindowHashTable.WindowDataContext.LogDataGrid = (Get-Content $LogFileList) | ConvertFrom-String -TemplateContent $TemplateText
-            $WindowHashTable.RunSpaceRunning = $false
-        }
-        catch {
-            $ErrorMessage = $_.Exception.Message
-            $Popup = New-Object -ComObject wscript.shell
-            $Popup.Popup("Error!`n$ErrorMessage",0,"Error!",16)
-
-        }
-        $WindowHashTable.WindowDataContext.ProgressText = 'Done!'
-    }
-    if ($WindowHashTable.RunspaceRunning -ne $true) {
-        $SessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
-	    $SessionState.ApartmentState = "STA"
-	    $SessionState.Variables.Add((New-Object -TypeName System.Management.Automation.Runspaces.SessionStateVariableEntry -ArgumentList 'WindowHashTable', $WindowHashTable, ""))
-        $RunspacePool = [RunspaceFactory]::CreateRunspacePool(1, 5, $SessionState, $Host)
-	    $RunspacePool.Open()
-        $PSCreate = [Powershell]::Create().AddScript($Scriptblock).AddArgument($LogFileList).AddArgument($TemplateText)
-        $PSCreate.RunspacePool = $RunspacePool
-        $PSCreate.BeginInvoke()
-    }
-}
-
-
-[xml]$xaml = @'
-<Window 
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:PowerShell_WPF.Windows"
-        
-        Title="Universal Log Viewer" Height="500" Width="600" WindowStartupLocation="CenterScreen" >
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*"/>
-            <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="2*"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="30"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="4">
-            <TextBox />
-        </Grid>
-        <Button Name="Btn_ChooseLogFiles" Content="Choose Log Files" Margin="5,5,5,5" Grid.Column="0" Grid.Row="0"/>
-        <ListBox Name="List_LogFiles"  Grid.Row="1" Grid.Column="0" Grid.RowSpan="2" ItemsSource="{Binding Path=LogFileList}" Margin="5,5,0,5" SelectionMode="Extended">
-            <ListBox.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Name="LogFileRemove" Header="Remove"/>
-                </ContextMenu>
-            </ListBox.ContextMenu>
-        </ListBox>
-        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Grid.Row="0" Grid.RowSpan="2"/>
-        <Grid Grid.Row="0" Grid.RowSpan="2" Grid.Column="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="30"/>
-            </Grid.RowDefinitions>
-            <Expander Header="Template" Grid.Row="0" Grid.Column="1" >
-                <Grid Background="#FFE5E5E5" Height="200">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="25"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="30"/>
-                    </Grid.RowDefinitions>
-                    <Label Content="Template Text" HorizontalAlignment="Center" Grid.Row="0" Grid.Column="1"/>
-                    <TextBox Text="{Binding Path=TemplateText}" Grid.Column="1" Grid.Row="1" AcceptsReturn="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
-                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,5,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Name="Btn_SaveTemplate" Width="75" Content="Save" Margin="0,0,5,0"/>
-                        <Button Name="Btn_LoadTemplate" Width="75" Content="Load" Margin="0,0,5,0"/>
-                        <Button Name="Btn_ApplyTemplate" Width="75" Content="Update" Margin="0,0,5,0"/>
-                    </StackPanel>
-                </Grid>
-            </Expander>
-            <DataGrid Grid.Row="1" ItemsSource="{Binding Path=LogDataGrid}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False"/>
-            <Button Name="Btn_Refresh" Grid.Row="2" Width="75" Content="Refresh" Margin="0,5,0,5"/>
-            <Label Grid.Row="2" HorizontalAlignment="Left" Content="{Binding Path=ProgressText}"/>
-        </Grid>
-    </Grid>
-</Window>
-
-'@
-
-# Make window
-$Window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
-$xaml.SelectNodes("//*[@Name]") | Foreach-Object { Set-Variable -Name (("Window" + "_" + $_.Name)) -Value $Window.FindName($_.Name) }
-
 Add-Type -Language CSharp @'
 using System.ComponentModel;
 
@@ -175,12 +72,103 @@ public class WindowClass : INotifyPropertyChanged
 }
 
 '@
+
+Function Update-EphingTemplate {
+    Param ( 
+        $LogFileList,
+        $TemplateText
+    )
+    $WindowHashTable.WindowDataContext.ProgressText = 'Please wait...'
+    try {
+        $WindowHashTable.WindowDataContext.LogDataGrid = (Get-Content $LogFileList) | ConvertFrom-String -TemplateContent $TemplateText
+    }
+    catch {
+        $ErrorMessage = $_.Exception.Message
+        $Popup = New-Object -ComObject wscript.shell
+        $Popup.Popup("Error!`n$ErrorMessage",0,"Error!",16)
+    }
+    $WindowHashTable.WindowDataContext.ProgressText = 'Done!'
+}
+
 $WindowHashTable = [hashtable]::Synchronized(@{})
+$WindowHashTable.Host = $Host
 $WindowHashTable.WindowDataContext = New-Object -TypeName WindowClass
+$Runspace = [RunspaceFactory]::CreateRunspace()
+$Runspace.ApartmentState = "STA"
+$Runspace.ThreadOptions = "ReuseThread"
+$Runspace.Open()
+$Runspace.SessionStateProxy.SetVariable("WindowHashTable",$WindowHashTable)
+$psScript = [Powershell]::Create().AddScript({
+
+[xml]$xaml = @'
+<Window 
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PowerShell_WPF.Windows"
+        
+        Title="Universal Log Viewer" Height="500" Width="600" WindowStartupLocation="CenterScreen" >
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="2*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="4">
+            <TextBox />
+        </Grid>
+        <Button Name="Btn_ChooseLogFiles" Content="Choose Log Files" Margin="5,5,5,5" Grid.Column="0" Grid.Row="0"/>
+        <ListBox Name="List_LogFiles"  Grid.Row="1" Grid.Column="0" Grid.RowSpan="2" ItemsSource="{Binding Path=LogFileList}" Margin="5,5,0,5" SelectionMode="Extended">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Name="LogFileRemove" Header="Remove"/>
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
+        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Grid.Row="0" Grid.RowSpan="2"/>
+        <Grid Grid.Row="0" Grid.RowSpan="2" Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="30"/>
+            </Grid.RowDefinitions>
+            <Expander Header="Template" Grid.Row="0" Grid.Column="1" >
+                <Grid Background="#FFE5E5E5" Height="200">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="25"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="30"/>
+                    </Grid.RowDefinitions>
+                    <Label Content="Template Text" HorizontalAlignment="Center" Grid.Row="0" Grid.Column="1"/>
+                    <TextBox Text="{Binding Path=TemplateText}" Grid.Column="1" Grid.Row="1" AcceptsReturn="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,5,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Name="Btn_SaveTemplate" Width="75" Content="Save" Margin="0,0,5,0"/>
+                        <Button Name="Btn_LoadTemplate" Width="75" Content="Load" Margin="0,0,5,0"/>
+                        <Button Name="Btn_ApplyTemplate" Width="75" Content="Update" Margin="0,0,5,0"/>
+                    </StackPanel>
+                </Grid>
+            </Expander>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding Path=LogDataGrid, Mode=TwoWay}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False"/>
+            <Button Name="Btn_Refresh" Grid.Row="2" Width="75" Content="Refresh" Margin="0,5,0,5"/>
+            <Label Grid.Row="2" HorizontalAlignment="Left" Content="{Binding Path=ProgressText}"/>
+        </Grid>
+    </Grid>
+</Window>
+
+'@
+
+# Make window
+$Window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
+$xaml.SelectNodes("//*[@Name]") | Foreach-Object { Set-Variable -Name (("Window" + "_" + $_.Name)) -Value $Window.FindName($_.Name) }
 $Window.DataContext = $WindowHashTable.WindowDataContext
 $WindowHashTable.WindowDataContext.ExampleList = New-Object System.Collections.ArrayList
 #endregion
- 
+
 $Window_Btn_ChooseLogFiles.Add_Click({
     $null = [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
     $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -243,11 +231,22 @@ $Window_Btn_SaveTemplate.Add_Click({
 })
 
 $Window_Btn_ApplyTemplate.Add_Click({
-    Update-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
+    $WindowHashTable.Host.Runspace.Events.GenerateEvent("UpdateTemplate", $null, $null, "")
 })
 
 $Window_Btn_Refresh.Add_Click({
-    Update-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
+    $null = $WindowHashTable.Host.Runspace.Events.GenerateEvent("UpdateTemplate", $null, $null, "")
 })
  
 $Window.ShowDialog() | Out-Null
+})
+
+$psScript.Runspace = $Runspace
+$Handle = $psScript.BeginInvoke()
+
+while ($StopTheMadness -ne $true) {
+    $null = Wait-Event -SourceIdentifier 'UpdateTemplate'
+    $null = Update-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
+    $null = [System.GC]::Collect()
+    $null = Remove-Event -SourceIdentifier 'UpdateTemplate'
+}
