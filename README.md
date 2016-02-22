@@ -14,6 +14,10 @@ Requirements:
 
 Known Issues:
    - There is a memory problem when parsing large log files. This is probably due to how I'm reading the text files, but am not sure how to fix it right now. If you plan on reading 20-40MB worth of logs at once, this will eat up a few GB of memory. Hopefully will get a fix in the future!
+   
+To Do:
+   - Add a filter to the results so it is easily searchable
+   - Add highlights (has specific text which will highlight a line)
 
 [ConvertFromString]: <https://technet.microsoft.com/en-us/library/dn807178.aspx>
 [CFExamples]: <https://blogs.msdn.microsoft.com/powershell/2014/10/31/convertfrom-string-example-based-text-parsing/>
