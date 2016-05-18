@@ -1,65 +1,34 @@
 ﻿Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase
-Add-Type -Language CSharp @'
-using System.ComponentModel;
 
-public class WindowClass : INotifyPropertyChanged
+Function Create-EphingClass {
+    Param (
+        $ClassName,
+        $ClassHash
+    )
+
+    $Class = @"
+using System.ComponentModel;
+using System.Windows;
+public class $ClassName : INotifyPropertyChanged
 {
 
-
-    private string privateTemplateText;
-    public string TemplateText
-    {
-        get { return privateTemplateText; }
-        set
+"@
+    Foreach ($Key in $ClassHash.Keys) {
+        $ClassType = $ClassHash[$Key]
+        $Class = $Class + @"
+        private $ClassType private$Key;
+        public $ClassType $key
         {
-            privateTemplateText = value;
-            NotifyPropertyChanged("TemplateText");
+            get { return private$Key; }
+            set
+            {
+                private$Key = value;
+                NotifyPropertyChanged("$Key");
+            }
         }
+"@
     }
-    
-    private object privateLogFileList;
-    public object LogFileList
-    {
-        get { return privateLogFileList; }
-        set
-        {
-            privateLogFileList = value;
-            NotifyPropertyChanged("LogFileList");
-        }
-    }
-
-    private object privateProgressText;
-    public object ProgressText
-    {
-        get { return privateProgressText; }
-        set
-        {
-            privateProgressText = value;
-            NotifyPropertyChanged("ProgressText");
-        }
-    }
-
-    private object privateExampleList;
-    public object ExampleList
-    {
-        get { return privateExampleList; }
-        set
-        {
-            privateExampleList = value;
-            NotifyPropertyChanged("ExampleList");
-        }
-    }
-
-    private object privateLogDataGrid;
-    public object LogDataGrid
-    {
-        get { return privateLogDataGrid; }
-        set
-        {
-            privateLogDataGrid = value;
-            NotifyPropertyChanged("LogDataGrid");
-        }
-    }
+$Class = $Class + @"
 
     public event PropertyChangedEventHandler PropertyChanged;
     private void NotifyPropertyChanged(string property)
@@ -70,8 +39,15 @@ public class WindowClass : INotifyPropertyChanged
         }
     }
 }
-
-'@
+"@
+    try {
+        $null = Add-Type -Language CSharp $Class -ErrorAction SilentlyContinue
+        
+    }
+    catch {
+        
+    }
+}
 
 Function Update-EphingTemplate {
     Param ( 
@@ -89,6 +65,15 @@ Function Update-EphingTemplate {
     }
     $WindowHashTable.WindowDataContext.ProgressText = 'Done!'
 }
+
+$ClassHash = @{
+    'LogFileList'='object'
+    'TemplateText'='string'
+    'LogDataGrid'='object'
+    'ProgressText'='string'
+}
+
+Create-EphingClass -ClassName 'WindowClass' -ClassHash $ClassHash
 
 $WindowHashTable = [hashtable]::Synchronized(@{})
 $WindowHashTable.Host = $Host
@@ -119,11 +104,8 @@ $psScript = [Powershell]::Create().AddScript({
             <RowDefinition Height="30"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="4">
-            <TextBox />
-        </Grid>
         <Button Name="Btn_ChooseLogFiles" Content="Choose Log Files" Margin="5,5,5,5" Grid.Column="0" Grid.Row="0"/>
-        <ListBox Name="List_LogFiles"  Grid.Row="1" Grid.Column="0" Grid.RowSpan="2" ItemsSource="{Binding Path=LogFileList}" Margin="5,5,0,5" SelectionMode="Extended">
+        <ListBox Name="List_LogFiles" Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Path=LogFileList}" Margin="5,5,0,5" SelectionMode="Extended">
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Name="LogFileRemove" Header="Remove"/>
@@ -144,9 +126,9 @@ $psScript = [Powershell]::Create().AddScript({
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
-                    <Label Content="Template Text" HorizontalAlignment="Center" Grid.Row="0" Grid.Column="1"/>
-                    <TextBox Text="{Binding Path=TemplateText}" Grid.Column="1" Grid.Row="1" AcceptsReturn="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
-                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,5,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Label Content="Template Text" HorizontalAlignment="Center" Grid.Row="0"/>
+                    <TextBox Text="{Binding Path=TemplateText}" Grid.Row="1" AcceptsReturn="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
+                    <StackPanel Grid.Row="2" Margin="0,5,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Name="Btn_SaveTemplate" Width="75" Content="Save" Margin="0,0,5,0"/>
                         <Button Name="Btn_LoadTemplate" Width="75" Content="Load" Margin="0,0,5,0"/>
                         <Button Name="Btn_ApplyTemplate" Width="75" Content="Update" Margin="0,0,5,0"/>
@@ -154,7 +136,7 @@ $psScript = [Powershell]::Create().AddScript({
                 </Grid>
             </Expander>
             <DataGrid Grid.Row="1" ItemsSource="{Binding Path=LogDataGrid, Mode=TwoWay}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False"/>
-            <Button Name="Btn_Refresh" Grid.Row="2" Width="75" Content="Refresh" Margin="0,5,0,5"/>
+            <Button Name="Btn_Refresh" Grid.Row="2" Width="75" Content="Refresh" Margin="0,5,5,5" HorizontalAlignment="Right"/>
             <Label Grid.Row="2" HorizontalAlignment="Left" Content="{Binding Path=ProgressText}"/>
         </Grid>
     </Grid>
@@ -162,12 +144,9 @@ $psScript = [Powershell]::Create().AddScript({
 
 '@
 
-# Make window
 $Window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $xaml.SelectNodes("//*[@Name]") | Foreach-Object { Set-Variable -Name (("Window" + "_" + $_.Name)) -Value $Window.FindName($_.Name) }
 $Window.DataContext = $WindowHashTable.WindowDataContext
-$WindowHashTable.WindowDataContext.ExampleList = New-Object System.Collections.ArrayList
-#endregion
 
 $Window_Btn_ChooseLogFiles.Add_Click({
     $null = [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
@@ -237,14 +216,16 @@ $Window_Btn_ApplyTemplate.Add_Click({
 $Window_Btn_Refresh.Add_Click({
     $null = $WindowHashTable.Host.Runspace.Events.GenerateEvent("UpdateTemplate", $null, $null, "")
 })
- 
+
 $Window.ShowDialog() | Out-Null
+
 })
 
 $psScript.Runspace = $Runspace
 $Handle = $psScript.BeginInvoke()
 
 while ($StopTheMadness -ne $true) {
+    Start-Sleep 1
     $null = Wait-Event -SourceIdentifier 'UpdateTemplate'
     $null = Update-EphingTemplate -LogFileList $WindowHashTable.WindowDataContext.LogFileList -TemplateText $WindowHashTable.WindowDataContext.TemplateText
     $null = [System.GC]::Collect()
